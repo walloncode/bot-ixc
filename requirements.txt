@@ -1,0 +1,26 @@
+# --- Core ---
+pydantic>=2.7
+pydantic-settings>=2.3
+
+# --- Automação ---
+playwright>=1.44
+pyautogui>=0.9.54
+
+# --- Visão / OCR ---
+opencv-python>=4.10
+Pillow>=10.3
+pytesseract>=0.3.10
+
+# --- IA (decisão / exceções) ---
+anthropic>=0.30
+openai>=1.30
+
+# --- Backend / Orquestração ---
+fastapi>=0.111
+uvicorn[standard]>=0.30
+
+# --- Logs ---
+loguru>=0.7
+
+# --- Dev / Testes ---
+pytest>=8.2
