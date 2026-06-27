@@ -35,8 +35,11 @@ class BrowserActuator:
         logger.info("Browser iniciado (headless={})", self._headless)
 
     def goto(self, url: str) -> ActionResult:
-        self.page.goto(url)
-        return ActionResult(success=True, message=f"goto {url}")
+        try:
+            self.page.goto(url)
+            return ActionResult(success=True, message=f"goto {url}")
+        except Exception as exc:  # noqa: BLE001 - reportado, não derruba o fluxo
+            return ActionResult(success=False, message=f"goto falhou: {exc}")
 
     def stop(self) -> None:
         if self._browser:

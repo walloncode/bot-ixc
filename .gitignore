@@ -7,3 +7,6 @@ logs/*.log
 logs/*.png
 logs/*.db
 .pytest_cache/
+
+# Prints de telas reais (contêm dados de cliente) — nunca commitar
+telas/

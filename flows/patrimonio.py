@@ -16,7 +16,7 @@ from models import Patrimonio
 
 from .base import Flow
 from .parsing import movimentacoes_from_cells
-from .selectors import MovimentacaoSel, PatrimonioSel, linha_patrimonio
+from .selectors import ContratoSel, MovimentacaoSel, PatrimonioSel, linha_patrimonio
 
 
 class FluxoPatrimonio(Flow):
@@ -29,7 +29,9 @@ class FluxoPatrimonio(Flow):
             return self._consultar()
         if step is AgentStep.VERIFICAR_MOVIMENTACAO:
             return self._verificar_movimentacao()
-        # Próximas etapas (contrato, vendas, NF...) entram aqui.
+        if step is AgentStep.ABRIR_CONTRATO:
+            return self._abrir_contrato()
+        # Próximas etapas (notas/O.S., vendas, NF...) entram aqui.
         logger.warning("Etapa ainda não implementada: {}", step)
         return AgentStep.AGUARDANDO_HUMANO
 
@@ -38,10 +40,22 @@ class FluxoPatrimonio(Flow):
         sel = PatrimonioSel
 
         # 1. exibir todos os patrimônios, depois buscar por código (Enter).
-        self.agent.actuator.click(sel.exibir_todos_btn)
-        self.agent.actuator.type_text(sel.busca_input, self.codigo)
-        self.agent.actuator.press(sel.busca_input, sel.busca_tecla)
-        self.agent.actuator.wait(sel.resultado_status)
+        #    Logamos cada ação para diagnosticar seletor que não casa com a tela.
+        a = self.agent.actuator
+        r_todos = a.click(sel.exibir_todos_btn)
+        r_digita = a.type_text(sel.busca_input, self.codigo)
+        r_enter = a.press(sel.busca_input, sel.busca_tecla)
+        r_wait = a.wait(sel.resultado_status)
+        logger.info(
+            "consultar[{}]: exibir_todos={} | digitar_codigo={} | enter={} | aguardar_status={}",
+            self.codigo, r_todos.success, r_digita.success, r_enter.success, r_wait.success,
+        )
+        if not (r_digita.success and r_enter.success):
+            logger.warning(
+                "Busca não foi aplicada (digitar/enter falhou) — status lido pode NÃO "
+                "ser do patrimônio {}. Verifique os seletores busca_input/exibir_todos.",
+                self.codigo,
+            )
 
         # 2. ler status real da tela (depende do IXC -> isolado)
         status = self._ler_status()
@@ -84,6 +98,20 @@ class FluxoPatrimonio(Flow):
 
         self.agent.state.context["movimentacao"] = resultado.data.get("movimentacao")
         return AgentStep.ABRIR_CONTRATO
+
+    # ----- passo 8: abrir contrato -------------------------------------- #
+    def _abrir_contrato(self) -> AgentStep:
+        """Passo 8: abre o cadastro do contrato pelo botão F3 do campo
+        `id_contrato`. Sem regra de negócio (FLUXO_COMPLETO §8 = "—"): só
+        navega e segue para a verificação de notas/O.S. (passos 9-10).
+
+        OBS: ainda falta o HTML da tela de contrato aberta para confirmar
+        como esperar o carregamento (nova aba? iframe?). Por isso NÃO há
+        `wait` inventado aqui — isso entra no passo VERIFICAR_NOTAS_OS.
+        """
+        self.agent.actuator.click(ContratoSel.abrir_contrato_btn)
+        logger.info("Contrato aberto (F3) — seguindo para notas/O.S.")
+        return AgentStep.VERIFICAR_NOTAS_OS
 
     def _ler_movimentacoes(self) -> list[dict]:
         """Lê [{'tipo', 'data'}] do histórico via colunas finalidade + data."""
